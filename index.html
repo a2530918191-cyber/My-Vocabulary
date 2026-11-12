@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Vocabulary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; }
+        .sky-gradient { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); }
+    </style>
+</head>
+<body class="sky-gradient min-h-screen text-slate-700 flex flex-col justify-between">
+
+    <!-- 顶部导航 -->
+    <header class="bg-white/80 backdrop-blur border-b border-sky-100 sticky top-0 z-50">
+        <div class="max-w-2xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <div class="w-9 h-9 bg-sky-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-sky-200">MV</div>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">My Vocabulary</h1>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="openBackupModal()" class="text-xs bg-sky-50 text-sky-600 px-3 py-1.5 rounded-lg font-medium hover:bg-sky-100 transition">备份/恢复</button>
+                <button onclick="showInstallGuide()" class="text-xs bg-sky-500 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-sky-600 transition shadow-sm">主屏幕图标</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="max-w-2xl w-full mx-auto p-4 flex-1 space-y-4">
+        
+        <!-- 录入卡片 -->
+        <section class="bg-white p-5 rounded-2xl border border-sky-100 shadow-sm">
+            <h2 class="text-sm font-semibold text-slate-500 mb-3 uppercase tracking-wider">添加新单词</h2>
+            <form id="wordForm" onsubmit="addWord(event)" class="space-y-3">
+                <div>
+                    <input type="text" id="wordInput" placeholder="输入外语单词 (例如: vocabulary)" required
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-400 focus:bg-white text-sm transition">
+                </div>
+                <div>
+                    <input type="text" id="meaningInput" placeholder="输入中文释义 (例如: 词汇表)" required
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-400 focus:bg-white text-sm transition">
+                </div>
+                <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm shadow-sky-200">
+                    添加单词
+                </button>
+            </form>
+        </section>
+
+        <!-- 功能入口卡片 -->
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="switchTab('list')" class="bg-white p-4 rounded-2xl border border-sky-100 shadow-sm hover:border-sky-300 text-left transition group">
+                <div class="w-8 h-8 rounded-lg bg-sky-50 text-sky-500 flex items-center justify-center font-bold mb-2 group-hover:bg-sky-500 group-hover:text-white transition">📖</div>
+                <h3 class="font-bold text-slate-800 text-sm">我的单词本</h3>
+                <p id="statsTotal" class="text-xs text-slate-400 mt-0.5">共 0 个单词</p>
+            </button>
+            <button onclick="startReview()" class="bg-white p-4 rounded-2xl border border-sky-100 shadow-sm hover:border-sky-300 text-left transition group">
+                <div class="w-8 h-8 rounded-lg bg-sky-50 text-sky-500 flex items-center justify-center font-bold mb-2 group-hover:bg-sky-500 group-hover:text-white transition">🎯</div>
+                <h3 class="font-bold text-slate-800 text-sm">开始复习单词</h3>
+                <p id="statsUnmastered" class="text-xs text-slate-400 mt-0.5">待复习 0 个生词</p>
+            </button>
+        </div>
+
+        <!-- 单词本管理视图 (默认隐藏) -->
+        <section id="listView" class="hidden bg-white p-5 rounded-2xl border border-sky-100 shadow-sm space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="font-bold text-slate-800">单词本管理</h2>
+                <button onclick="switchTab('home')" class="text-xs text-sky-500 font-medium hover:underline">返回首页</button>
+            </div>
+            <!-- 搜索与筛选 -->
+            <div class="flex gap-2">
+                <input type="text" id="searchInput" placeholder="搜索单词或释义..." oninput="renderWordList()"
+                    class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-sky-400">
+                <select id="filterSelect" onchange="renderWordList()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-sky-400">
+                    <option value="all">全部</option>
+                    <option value="unmastered">生词</option>
+                    <option value="mastered">熟词</option>
+                </select>
+            </div>
+            <!-- 单词列表容器 -->
+            <div id="wordListContainer" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                <!-- 动态生成 -->
+            </div>
+        </section>
+
+        <!-- 复习视图 (默认隐藏) -->
+        <section id="reviewView" class="hidden bg-white p-6 rounded-2xl border border-sky-100 shadow-sm space-y-6 text-center">
+            <div class="flex justify-between items-center">
+                <span id="reviewModeTitle" class="text-xs font-bold text-sky-500 bg-sky-50 px-2.5 py-1 rounded-full">看词写义</span>
+                <button onclick="switchTab('home')" class="text-xs text-slate-400 hover:text-slate-600">退出复习</button>
+            </div>
+            
+            <div class="py-6 space-y-2">
+                <h3 id="reviewPrompt" class="text-2xl font-bold text-slate-800">-</h3>
+                <p id="reviewSub" class="text-xs text-slate-400">请写出对应的中文释义/拼写</p>
+            </div>
+
+            <div id="reviewInputArea" class="space-y-3">
+                <input type="text" id="reviewAnswerInput" placeholder="输入你的答案..." onkeydown="if(event.key==='Enter') checkAnswer()"
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-sm focus:outline-none focus:ring-2 focus:ring-sky-400">
+                <button onclick="checkAnswer()" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-medium py-3 rounded-xl text-sm transition shadow-sm shadow-sky-200">
+                    提交核对
+                </button>
+            </div>
+
+            <div id="reviewFeedbackArea" class="hidden space-y-4 pt-2">
+                <div id="feedbackResult" class="text-sm font-bold"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="markCurrentWord(true)" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 py-2.5 rounded-xl text-xs font-medium transition">
+                        ✓ 标记为熟词
+                    </button>
+                    <button onclick="markCurrentWord(false)" class="bg-amber-50 text-amber-600 hover:bg-amber-100 py-2.5 rounded-xl text-xs font-medium transition">
+                        ✗ 仍为生词
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="text-center py-4 text-xs text-slate-400">
+        My Vocabulary &copy; 2026
+    </footer>
+
+    <!-- 备份恢复弹窗 -->
+    <div id="backupModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-slate-800 text-sm">备份与恢复数据</h3>
+                <button onclick="closeBackupModal()" class="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+            </div>
+            <p class="text-xs text-slate-500">你可以复制以下备份文本，或保存为文件以便在不同设备间同步单词。</p>
+            <textarea id="backupTextarea" rows="5" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-sky-400"></textarea>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="copyBackup()" class="bg-sky-50 text-sky-600 hover:bg-sky-100 py-2 rounded-xl text-xs font-medium transition">复制备份文本</button>
+                <button onclick="restoreBackup()" class="bg-sky-500 text-white hover:bg-sky-600 py-2 rounded-xl text-xs font-medium transition">导入/应用数据</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主屏幕指南弹窗 -->
+    <div id="installModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 text-center shadow-xl">
+            <div class="w-12 h-12 bg-sky-500 text-white rounded-2xl mx-auto flex items-center justify-center font-bold text-xl shadow-md shadow-sky-200">MV</div>
+            <h3 class="font-bold text-slate-800 text-sm">添加到 iPhone 主屏幕</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+                在 iPhone 的 <strong class="text-slate-700">Safari 浏览器</strong> 中打开此网页，点击下方工具栏的 <strong class="text-slate-700">“分享”</strong> 按钮，然后选择 <strong class="text-slate-700">“添加到主屏幕”</strong> 即可像 App 一样全屏使用。
+            </p>
+            <button onclick="closeInstallGuide()" class="w-full bg-sky-500 text-white py-2.5 rounded-xl text-xs font-medium hover:bg-sky-600 transition">知道了</button>
+        </div>
+    </div>
+
+    <script>
+        let words = JSON.parse(localStorage.getItem('my_vocabulary_words')) || [
+            { id: 1, word: 'vocabulary', meaning: '词汇表、词汇', mastered: false },
+            { id: 2, word: 'persist', meaning: '坚持、持续', mastered: true }
+        ];
+
+        let currentReviewIndex = 0;
+        let reviewQueue = [];
+        let currentMode = 'meaning'; // meaning or spelling
+
+        function saveWords() {
+            localStorage.setItem('my_vocabulary_words', JSON.stringify(words));
+            updateStats();
+        }
+
+        function updateStats() {
+            const total = words.length;
+            const unmastered = words.filter(w => !w.mastered).length;
+            document.getElementById('statsTotal').innerText = `共 ${total} 个单词`;
+            document.getElementById('statsUnmastered').innerText = `待复习 ${unmastered} 个生词`;
+        }
+
+        function switchTab(tab) {
+            document.getElementById('wordForm').parentElement.classList.toggle('hidden', tab !== 'home');
+            document.querySelector('.grid.grid-cols-2').classList.toggle('hidden', tab !== 'home');
+            document.getElementById('listView').classList.toggle('hidden', tab !== 'list');
+            document.getElementById('reviewView').classList.toggle('hidden', tab !== 'review');
+
+            if (tab === 'list') renderWordList();
+        }
+
+        function addWord(e) {
+            e.preventDefault();
+            const wordInput = document.getElementById('wordInput');
+            const meaningInput = document.getElementById('meaningInput');
+            
+            const newWord = {
+                id: Date.now(),
+                word: wordInput.value.trim(),
+                meaning: meaningInput.value.trim(),
+                mastered: false
+            };
+
+            words.unshift(newWord);
+            saveWords();
+            wordInput.value = '';
+            meaningInput.value = '';
+            wordInput.focus();
+            
+            // 简单动效反馈
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = '✓ 添加成功';
+            btn.setTimeout = setTimeout(() => btn.innerText = originalText, 1000);
+        }
+
+        function renderWordList() {
+            const container = document.getElementById('wordListContainer');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filter = document.getElementById('filterSelect').value;
+
+            const filtered = words.filter(w => {
+                const matchesSearch = w.word.toLowerCase().includes(search) || w.meaning.includes(search);
+                if (filter === 'mastered') return matchesSearch && w.mastered;
+                if (filter === 'unmastered') return matchesSearch && !w.mastered;
+                return matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p class="text-center text-xs text-slate-400 py-6">暂无相关单词记录</p>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(w => `
+                <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs">
+                    <div>
+                        <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            ${w.word}
+                            <button onclick="speakWord('${w.word}')" class="text-sky-500 hover:text-sky-600 font-normal">🔊</button>
+                        </div>
+                        <div class="text-slate-500 mt-0.5">${w.meaning}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleMastered(${w.id})" class="px-2.5 py-1 rounded-lg font-medium transition ${w.mastered ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}">
+                            ${w.mastered ? '✓ 熟词' : '生词'}
+                        </button>
+                        <button onclick="deleteWord(${w.id})" class="text-slate-300 hover:text-rose-500 px-1">✕</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleMastered(id) {
+            const word = words.find(w => w.id === id);
+            if (word) {
+                word.mastered = !word.mastered;
+                saveWords();
+                renderWordList();
+            }
+        }
+
+        function deleteWord(id) {
+            if (confirm('确定要删除这个单词吗？')) {
+                words = words.filter(w => w.id !== id);
+                saveWords();
+                renderWordList();
+            }
+        }
+
+        function speakWord(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function startReview() {
+            reviewQueue = words.filter(w => !w.mastered);
+            if (reviewQueue.length === 0) {
+                alert('太棒了！当前没有未掌握的生词，去添加新单词或者在单词本中将生词重置吧！');
+                return;
+            }
+            // 随机打乱
+            reviewQueue.sort(() => Math.random() - 0.5);
+            currentReviewIndex = 0;
+            currentMode = Math.random() > 0.5 ? 'meaning' : 'spelling';
+            switchTab('review');
+            loadReviewCard();
+        }
+
+        function loadReviewCard() {
+            if (currentReviewIndex >= reviewQueue.length) {
+                alert('恭喜你！本轮生词复习已全部完成！');
+                switchTab('home');
+                return;
+            }
+
+            const current = reviewQueue[currentReviewIndex];
+            const promptEl = document.getElementById('reviewPrompt');
+            const subEl = document.getElementById('reviewSub');
+            const titleEl = document.getElementById('reviewModeTitle');
+            
+            document.getElementById('reviewInputArea').classList.remove('hidden');
+            document.getElementById('reviewFeedbackArea').classList.add('hidden');
+            document.getElementById('reviewAnswerInput').value = '';
+
+            if (currentMode === 'meaning') {
+                titleEl.innerText = '模式：看词写义';
+                promptEl.innerText = current.word;
+                subEl.innerText = '请在下方输入对应的中文意思';
+            } else {
+                titleEl.innerText = '模式：看义拼写';
+                promptEl.innerText = current.meaning;
+                subEl.innerText = '请在下方拼写对应的外语单词';
+            }
+            document.getElementById('reviewAnswerInput').focus();
+        }
+
+        function checkAnswer() {
+            const current = reviewQueue[currentReviewIndex];
+            const input = document.getElementById('reviewAnswerInput').value.trim();
+            const feedbackArea = document.getElementById('reviewFeedbackArea');
+            const resultEl = document.getElementById('feedbackResult');
+
+            if (!input) return;
+
+            let isCorrect = false;
+            if (currentMode === 'meaning') {
+                isCorrect = current.meaning.toLowerCase().includes(input.toLowerCase());
+            } else {
+                isCorrect = current.word.toLowerCase() === input.toLowerCase();
+            }
+
+            document.getElementById('reviewInputArea').classList.add('hidden');
+            feedbackArea.classList.remove('hidden');
+
+            if (isCorrect) {
+                resultEl.innerHTML = `<span class="text-emerald-600">✓ 回答正确！</span>`;
+            } else {
+                resultEl.innerHTML = `<span class="text-rose-500">✗ 回答错误</span><div class="text-xs text-slate-500 font-normal mt-1">正确答案：${currentMode === 'meaning' ? current.meaning : current.word}</div>`;
+            }
+        }
+
+        function markCurrentWord(isMastered) {
+            const current = reviewQueue[currentReviewIndex];
+            const target = words.find(w => w.id === current.id);
+            if (target) {
+                target.mastered = isMastered;
+                saveWords();
+            }
+            currentReviewIndex++;
+            currentMode = Math.random() > 0.5 ? 'meaning' : 'spelling';
+            loadReviewCard();
+        }
+
+        function openBackupModal() {
+            document.getElementById('backupTextarea').value = JSON.stringify(words, null, 2);
+            document.getElementById('backupModal').classList.remove('hidden');
+        }
+
+        function closeBackupModal() {
+            document.getElementById('backupModal').classList.add('hidden');
+        }
+
+        function copyBackup() {
+            const textarea = document.getElementById('backupTextarea');
+            textarea.select();
+            document.execCommand('copy');
+            alert('备份数据已复制到剪贴板！');
+        }
+
+        function restoreBackup() {
+            try {
+                const parsed = JSON.parse(document.getElementById('backupTextarea').value);
+                if (Array.isArray(parsed)) {
+                    words = parsed;
+                    saveWords();
+                    closeBackupModal();
+                    alert('数据恢复成功！');
+                    switchTab('home');
+                } else {
+                    alert('数据格式错误，请检查 JSON 文本。');
+                }
+            } catch (e) {
+                alert('解析失败，请确保是正确的备份文本。');
+            }
+        }
+
+        function showInstallGuide() {
+            document.getElementById('installModal').classList.remove('hidden');
+        }
+
+        function closeInstallGuide() {
+            document.getElementById('installModal').classList.add('hidden');
+        }
+
+        // 初始化统计
+        updateStats();
+    </script>
+</body>
+</html>
